@@ -1,10 +1,10 @@
-"""Ingestion pipeline: BEAM conversations → KB/flat stores.
+"""Ingestion pipeline: BEAM conversations → KB/ME/flat stores.
 
 Option C design: ingest ALL turns into ALL stores. The difference is how
 each store handles them:
 - KB: turns as chunks + factual claims as conclusions with supersession
+- ME: turns as facts with bi-temporal metadata via CLI
 - Flat: turns as plain text chunks, no supersession, no temporal filtering
-- ME: turns as facts with bi-temporal metadata (implemented separately)
 
 Contradiction detection for supersession uses a lightweight heuristic:
 entity overlap + negation pattern matching between new user statements
@@ -16,9 +16,10 @@ from __future__ import annotations
 import logging
 import re
 
+from baseline.store import FlatStore
 from dataset.types import Conversation
 from routing.kb_store import KBStore
-from baseline.store import FlatStore
+from routing.me_store import MEStore
 
 logger = logging.getLogger(__name__)
 
@@ -240,3 +241,16 @@ def ingest_conversation_flat(
         for turn in conversation.all_turns
     ]
     return store.ingest_batch(rows)
+
+
+def ingest_conversation_me(
+    conversation: Conversation,
+    store: MEStore,
+) -> int:
+    """Ingest a BEAM conversation into the memory-engine store.
+
+    All turns inserted as facts with bi-temporal metadata.
+    The ME store handles embedding and temporal indexing via the CLI.
+    Returns the number of facts ingested.
+    """
+    return store.ingest_turns(conversation.all_turns, conversation.conversation_id)
