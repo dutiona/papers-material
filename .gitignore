@@ -8,6 +8,9 @@ __pycache__/
 data/*.json
 data/*.parquet
 data/*.csv
+data/*.db
+data/*.db-wal
+data/*.db-shm
 !data/.gitkeep
 
 # Results (regenerable)
