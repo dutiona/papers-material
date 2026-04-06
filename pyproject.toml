@@ -1,0 +1,17 @@
+[project]
+name = "beam-pilot"
+version = "0.1.0"
+description = "BEAM typed-routing pilot experiment for 'The Missing Knowledge Layer' paper"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"

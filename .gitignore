@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Data (potentially large)
+data/*.json
+data/*.parquet
+data/*.csv
+!data/.gitkeep
+
+# Results (regenerable)
+results/*.json
+results/*.csv
+!results/.gitkeep
+
+# Editor
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
