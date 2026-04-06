@@ -1,4 +1,7 @@
-"""LLM interface for answer generation and scoring via Ollama.
+"""LLM interface for answer generation and scoring.
+
+Chat (gemma4) via LM Studio (OpenAI-compatible API).
+Embeddings (all-minilm-l6-v2) via Ollama.
 
 The scoring prompt was designed via a 3-round structured debate between
 Claude Opus 4.6, Codex gpt-5.4, and Gemini 3.1-pro. See doc/debate-scoring-prompt/
@@ -10,15 +13,14 @@ from __future__ import annotations
 import logging
 import re
 
-import ollama
+import httpx
 
+from config import Config
 from dataset.types import QuestionCategory
 
 logger = logging.getLogger(__name__)
 
-# Defaults — override via function args.
-DEFAULT_MODEL = "gemma3:27b"
-DEFAULT_EMBED_MODEL = "all-minilm:l6-v2"
+_DEFAULT_CFG = Config()
 
 # Valid discrete score buckets (0-4 integer, normalized to 0.0-1.0).
 _VALID_SCORES = {0: 0.0, 1: 0.25, 2: 0.5, 3: 0.75, 4: 1.0}
@@ -128,16 +130,43 @@ def _parse_score_response(text: str) -> tuple[float, str]:
     return 0.0, f"PARSE_ERROR: {text[:160]}"
 
 
+def _chat(
+    messages: list[dict[str, str]],
+    *,
+    cfg: Config | None = None,
+    max_tokens: int | None = None,
+) -> str:
+    """Send a chat completion request to LM Studio (OpenAI-compatible API).
+
+    Returns the assistant's content. Gemma4's reasoning_content is consumed
+    internally by the model — only the final content is returned.
+    """
+    c = cfg or _DEFAULT_CFG
+    payload: dict[str, object] = {
+        "model": c.chat_model,
+        "messages": messages,
+        "temperature": c.chat_temperature,
+        "max_tokens": max_tokens or c.chat_max_tokens,
+    }
+    resp = httpx.post(
+        f"{c.chat_base_url}/chat/completions",
+        json=payload,
+        timeout=120.0,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    return str(data["choices"][0]["message"]["content"])
+
+
 def generate_answer(
     question: str,
     context: str,
     *,
-    model: str = DEFAULT_MODEL,
+    cfg: Config | None = None,
 ) -> str:
     """Generate an answer to a probing question given retrieved context."""
-    response = ollama.chat(
-        model=model,
-        messages=[
+    return _chat(
+        [
             {
                 "role": "system",
                 "content": (
@@ -153,8 +182,8 @@ def generate_answer(
                 "content": f"Context:\n{context}\n\nQuestion: {question}",
             },
         ],
+        cfg=cfg,
     )
-    return str(response.message.content)
 
 
 def score_answer(
@@ -163,23 +192,13 @@ def score_answer(
     generated_answer: str,
     category: QuestionCategory,
     *,
-    model: str = DEFAULT_MODEL,
+    cfg: Config | None = None,
 ) -> tuple[float, str]:
     """Score a generated answer against the ideal using an LLM judge.
 
     Uses a unified prompt with category-specific rubrics and hard caps.
-    Designed for local models (gemma3 27b) — discrete 0-4 integer scale,
+    Designed for local models (gemma4 26b) — discrete 0-4 integer scale,
     two-line output format, tolerant fallback parsing.
-
-    Args:
-        question: The original probing question.
-        ideal_answer: The BEAM-provided ideal answer.
-        generated_answer: The system-generated answer.
-        category: The BEAM question category (determines which rubric applies).
-        model: Ollama model name.
-
-    Returns:
-        Tuple of (score: float 0.0-1.0, justification: str).
     """
     prompt = _SCORING_PROMPT.format(
         category=category.value,
@@ -189,14 +208,13 @@ def score_answer(
     )
 
     try:
-        response = ollama.chat(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            options={"temperature": 0.0},
+        raw_output = _chat(
+            [{"role": "user", "content": prompt}],
+            cfg=cfg,
+            max_tokens=100,  # Score + justification only — save tokens.
         )
-        raw_output = str(response.message.content)
     except Exception:
-        logger.exception("Ollama call failed for scoring")
-        return 0.0, "OLLAMA_ERROR"
+        logger.exception("LLM call failed for scoring")
+        return 0.0, "LLM_ERROR"
 
     return _parse_score_response(raw_output)
