@@ -21,12 +21,18 @@ _ME_CLI = Path.home() / "dev/memory-engine/target/release/memory-engine-cli"
 
 
 class MEStore:
-    """Memory-engine store with bi-temporal querying via CLI."""
+    """Memory-engine store with bi-temporal querying via CLI.
+
+    Due to a ME CLI limitation (existing DBs open read-only for batch-ingest),
+    all ingestion must happen in a single batch-ingest --create call.
+    Use prepare_turns() to accumulate, then flush() to write all at once.
+    """
 
     def __init__(self, db_path: Path, *, cfg: Config | None = None) -> None:
         self._cfg = cfg or Config()
         self._db_path = db_path
-        self._created = False
+        self._pending_lines: list[str] = []
+        self._flushed = False
 
     @property
     def db_path(self) -> Path:
@@ -35,18 +41,15 @@ class MEStore:
     # ── Ingestion ──────────────────────────────────────────────────
 
     def ingest_turns(self, turns: list[ChatTurn], conversation_id: str) -> int:
-        """Ingest conversation turns as ME facts via batch-ingest.
+        """Accumulate conversation turns for later batch-ingest.
 
-        Each turn becomes a fact with:
-        - fact_type: episodic (events/experiences) for user turns,
-                     semantic (knowledge) for assistant turns
-        - t_valid: parsed from time_anchor if available
-        - metadata: conversation_id, turn_id, role
+        Call flush() after all conversations are prepared to write everything
+        in a single CLI call.
         """
-        lines: list[str] = []
+        count = 0
         for turn in turns:
             fact: dict[str, object] = {
-                "content": turn.content[:2000],  # Truncate very long turns.
+                "content": turn.content[:2000],
                 "fact_type": "episodic" if turn.role == "user" else "semantic",
                 "importance": 0.7 if turn.role == "user" else 0.4,
                 "metadata": {
@@ -55,18 +58,26 @@ class MEStore:
                     "role": turn.role,
                 },
             }
-            # Parse time_anchor into t_valid if available.
             t_valid = _parse_time_anchor(turn.time_anchor)
             if t_valid:
                 fact["t_valid"] = t_valid
-            lines.append(json.dumps(fact))
+            self._pending_lines.append(json.dumps(fact))
+            count += 1
+        return count
 
-        if not lines:
+    def flush(self) -> int:
+        """Write all accumulated facts to ME via a single batch-ingest --create call.
+
+        Returns the number of facts ingested.
+        """
+        if not self._pending_lines:
+            return 0
+        if self._flushed:
+            logger.warning("ME flush() called twice — ignoring (ME CLI read-only limitation)")
             return 0
 
-        # Write JSONL to temp file and call batch-ingest.
         with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
-            f.write("\n".join(lines))
+            f.write("\n".join(self._pending_lines))
             jsonl_path = f.name
 
         try:
@@ -81,23 +92,21 @@ class MEStore:
                 f"{self._cfg.ollama_host}/v1/embeddings",
                 "--embed-model",
                 self._cfg.embed_model,
+                "--create",
+                "--embed-dim",
+                str(self._cfg.embed_dim),
             ]
-            if not self._created:
-                cmd.extend(["--create", "--embed-dim", str(self._cfg.embed_dim)])
-                self._created = True
 
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=300,
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
             if result.returncode != 0:
                 logger.error("ME batch-ingest failed: %s", result.stderr)
                 return 0
 
-            logger.info("ME ingest: %s", result.stdout.strip())
-            return len(lines)
+            logger.info("ME flush: %s", result.stdout.strip())
+            self._flushed = True
+            count = len(self._pending_lines)
+            self._pending_lines.clear()
+            return count
         finally:
             Path(jsonl_path).unlink(missing_ok=True)
 

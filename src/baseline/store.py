@@ -6,6 +6,7 @@ same data, but no architectural awareness of contradiction or temporal validity.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -113,6 +114,10 @@ class FlatStore:
 
     def search(self, query: str, *, top_k: int = 10) -> list[SearchResult]:
         """FTS5 search with BM25 ranking. No temporal filtering."""
+        # Sanitize query: strip FTS5 special chars that cause syntax errors.
+        sanitized = _sanitize_fts5_query(query)
+        if not sanitized.strip():
+            return []
         rows = self._conn.execute(
             """\
             SELECT f.id, f.content, fts.rank, f.created_at, f.metadata
@@ -121,7 +126,7 @@ class FlatStore:
             WHERE facts_fts MATCH ?
             ORDER BY fts.rank
             LIMIT ?""",
-            (query, top_k),
+            (sanitized, top_k),
         ).fetchall()
         return [
             SearchResult(
@@ -138,3 +143,13 @@ class FlatStore:
         """Total number of facts in the store."""
         row = self._conn.execute("SELECT COUNT(*) FROM facts").fetchone()
         return int(row[0]) if row else 0
+
+
+def _sanitize_fts5_query(query: str) -> str:
+    """Strip FTS5 special characters that cause syntax errors.
+
+    FTS5 treats ?, *, ^, :, (, ), {, }, [, ], +, - as operators.
+    We keep only alphanumeric words joined by spaces (implicit OR).
+    """
+    words = re.findall(r"\b\w+\b", query)
+    return " ".join(words)

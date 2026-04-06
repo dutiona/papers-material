@@ -211,7 +211,7 @@ def score_answer(
         raw_output = _chat(
             [{"role": "user", "content": prompt}],
             cfg=cfg,
-            max_tokens=100,  # Score + justification only — save tokens.
+            max_tokens=1024,  # Gemma4 uses ~700 reasoning tokens before output.
         )
     except Exception:
         logger.exception("LLM call failed for scoring")

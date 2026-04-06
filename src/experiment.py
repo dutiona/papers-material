@@ -66,11 +66,11 @@ def run_experiment(
     for i, conv in enumerate(conversations):
         t0 = time.time()
         kb_stats = ingest_conversation_kb(conv, kb)
-        me_count = ingest_conversation_me(conv, me)
+        me_count = ingest_conversation_me(conv, me)  # Accumulates, doesn't write yet.
         flat_count = ingest_conversation_flat(conv, flat)
         elapsed = time.time() - t0
         logger.info(
-            "  Conv %s (%d/%d): KB=%s, ME=%d, flat=%d [%.1fs]",
+            "  Conv %s (%d/%d): KB=%s, ME_pending=%d, flat=%d [%.1fs]",
             conv.conversation_id,
             i + 1,
             len(conversations),
@@ -80,10 +80,16 @@ def run_experiment(
             elapsed,
         )
 
+    # ME requires a single batch-ingest --create call (CLI read-only limitation).
+    logger.info("Flushing ME store (single batch-ingest call)...")
+    me_total = me.flush()
+    logger.info("ME flush complete: %d facts ingested", me_total)
+
     logger.info(
-        "Ingestion complete: KB=%d chunks/%d conclusions, flat=%d chunks",
+        "Ingestion complete: KB=%d chunks/%d conclusions, ME=%d facts, flat=%d chunks",
         kb.chunk_count(),
         kb.conclusion_count(),
+        me_total,
         flat.count(),
     )
 

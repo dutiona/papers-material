@@ -53,8 +53,8 @@ class TestMEStoreIntegration:
         ]
         count = me_store.ingest_turns(turns, "conv-test")
         assert count == 3
+        me_store.flush()
 
-        # Query all
         results = me_store.query("property viewing")
         assert len(results) >= 1
         assert any("property" in str(r["content"]).lower() for r in results)
@@ -66,12 +66,11 @@ class TestMEStoreIntegration:
             ChatTurn("Meeting for final review of project", 3, "1,3", "q", "user", "March-30"),
         ]
         me_store.ingest_turns(turns, "conv-test")
+        me_store.flush()
 
-        # Without temporal filter — all three match "meeting project"
         all_results = me_store.query("meeting project")
         assert len(all_results) == 3
 
-        # With --valid-at March 15 — should get only kickoff (March 10), not 20 or 30
         filtered = me_store.query("meeting project", valid_at="2024-03-15T00:00:00Z")
         contents = [str(r["content"]) for r in filtered]
         assert len(filtered) == 1, f"Expected 1 result, got {len(filtered)}: {contents}"
@@ -83,6 +82,7 @@ class TestMEStoreIntegration:
             ChatTurn("Completed user auth on March 15", 2, "1,2", "q", "user", "March-15"),
         ]
         me_store.ingest_turns(turns, "conv-test")
+        me_store.flush()
 
         context = me_store.retrieve_temporal("Flask project", valid_at="2024-03-10T00:00:00Z")
         assert "Flask" in context
