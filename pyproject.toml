@@ -3,7 +3,11 @@ name = "beam-pilot"
 version = "0.1.0"
 description = "BEAM typed-routing pilot experiment for 'The Missing Knowledge Layer' paper"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "datasets>=3.0",       # HuggingFace datasets (BEAM loading)
+    "pyarrow>=15.0",       # Parquet support for datasets
+    "ollama>=0.4",         # Local LLM (gemma4) + embeddings (minilm)
+]
 
 [tool.ruff]
 line-length = 100
@@ -15,3 +19,16 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
 [tool.pyright]
 pythonVersion = "3.12"
 typeCheckingMode = "strict"
+venvPath = "."
+venv = ".venv"
+extraPaths = ["src"]
+exclude = ["tests"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
