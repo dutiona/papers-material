@@ -9,6 +9,7 @@ data/*.json
 data/*.parquet
 data/*.csv
 data/*.db
+data/*.db.snapshot
 data/*.db-wal
 data/*.db-shm
 !data/.gitkeep
@@ -20,9 +21,12 @@ results/*.csv
 
 # Editor
 .vscode/
+.history
 *.swp
 *~
 
 # OS
 .DS_Store
 Thumbs.db
+
+.claude
