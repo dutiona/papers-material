@@ -1,0 +1,21 @@
+{
+  "mean_by_category": {
+    "contradiction_resolution": 0.446875,
+    "temporal_reasoning": 0.35
+  },
+  "mean_by_condition": {
+    "typed": 0.4625,
+    "flat": 0.334375
+  },
+  "mean_by_category_and_condition": {
+    "contradiction_resolution": {
+      "typed": 0.5,
+      "flat": 0.39375
+    },
+    "temporal_reasoning": {
+      "typed": 0.425,
+      "flat": 0.275
+    }
+  },
+  "total_trials": 160
+}
