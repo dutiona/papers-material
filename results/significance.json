@@ -1,0 +1,80 @@
+{
+  "overall": {
+    "typed_mean": 0.4625,
+    "typed_ci": [
+      0.35625,
+      0.56875
+    ],
+    "flat_mean": 0.334375,
+    "flat_ci": [
+      0.23125,
+      0.4375
+    ],
+    "delta": 0.128125,
+    "delta_ci": [
+      0.0375,
+      0.221875
+    ],
+    "mcnemar_p": 0.03515625,
+    "mcnemar_contingency": {
+      "a": 25,
+      "b": 12,
+      "c": 3,
+      "d": 40
+    },
+    "n_discordant": 15,
+    "n": 80
+  },
+  "contradiction_resolution": {
+    "typed_mean": 0.5,
+    "typed_ci": [
+      0.35,
+      0.65
+    ],
+    "flat_mean": 0.39375,
+    "flat_ci": [
+      0.25,
+      0.54375
+    ],
+    "delta": 0.10625,
+    "delta_ci": [
+      0.01875,
+      0.2125
+    ],
+    "mcnemar_p": 0.125,
+    "mcnemar_contingency": {
+      "a": 16,
+      "b": 4,
+      "c": 0,
+      "d": 20
+    },
+    "n_discordant": 4,
+    "n": 40
+  },
+  "temporal_reasoning": {
+    "typed_mean": 0.425,
+    "typed_ci": [
+      0.275,
+      0.575
+    ],
+    "flat_mean": 0.275,
+    "flat_ci": [
+      0.15,
+      0.4125
+    ],
+    "delta": 0.15,
+    "delta_ci": [
+      -0.00625,
+      0.30625
+    ],
+    "mcnemar_p": 0.2265625,
+    "mcnemar_contingency": {
+      "a": 9,
+      "b": 8,
+      "c": 3,
+      "d": 20
+    },
+    "n_discordant": 11,
+    "n": 40
+  }
+}

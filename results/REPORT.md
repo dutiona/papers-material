@@ -8,11 +8,13 @@
 
 ## Results
 
-| Category                 | Typed     | Flat      | Delta      |
-| ------------------------ | --------- | --------- | ---------- |
-| Contradiction resolution | 0.500     | 0.394     | +0.106     |
-| Temporal reasoning       | 0.425     | 0.275     | +0.150     |
-| **Overall**              | **0.463** | **0.334** | **+0.128** |
+| Category                 | Typed     | Flat      | Delta      | 95% CI on Δ          | McNemar p |
+| ------------------------ | --------- | --------- | ---------- | -------------------- | --------- |
+| Contradiction resolution | 0.500     | 0.394     | +0.106     | [+0.019, +0.213]     | 0.125     |
+| Temporal reasoning       | 0.425     | 0.275     | +0.150     | [-0.006, +0.306]     | 0.227     |
+| **Overall**              | **0.463** | **0.334** | **+0.128** | **[+0.038, +0.222]** | **0.035** |
+
+Bootstrap 10,000 resamples (seed=42). McNemar exact binomial test on binarised scores (>0.5 = correct).
 
 ## Score Distribution
 
@@ -31,7 +33,7 @@
 
 ## Interpretation
 
-Both deltas are positive and above the 0.05 significance threshold defined in the runbook:
+The overall delta is statistically significant (p=0.035, McNemar exact test; bootstrap 95% CI excludes zero). Per-category tests lack power due to small discordant-pair counts (4 and 11 respectively).
 
 - **Temporal reasoning (+0.150)**: Largest gain. The memory-engine's bi-temporal filtering
   surfaces chronologically ordered facts; the flat FTS5 store returns temporally unordered chunks.
