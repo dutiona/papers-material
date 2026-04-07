@@ -163,8 +163,12 @@ def generate_answer(
     context: str,
     *,
     cfg: Config | None = None,
+    max_context_chars: int = 20_000,
 ) -> str:
     """Generate an answer to a probing question given retrieved context."""
+    # Truncate context to avoid exceeding model context window.
+    if len(context) > max_context_chars:
+        context = context[:max_context_chars] + "\n[…truncated]"
     return _chat(
         [
             {

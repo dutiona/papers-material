@@ -15,7 +15,7 @@ from baseline.store import FlatStore
 from classifier.router import RouterMode
 from config import Config
 from dataset.loader import load_beam
-from dataset.types import Conversation, ProbingQuestion, QuestionCategory
+from dataset.types import Conversation, ProbingQuestion, QueryRoute, QuestionCategory
 from evaluation.llm import generate_answer, score_answer
 from evaluation.types import ExperimentReport, TrialResult
 from routing.ingest import ingest_conversation_flat, ingest_conversation_kb, ingest_conversation_me
@@ -111,22 +111,28 @@ def run_experiment(
             question.question[:60],
         )
 
-        # ── Typed routing condition ───────────────────────────────
-        typed_context, route = retrieve_typed(
-            question,
-            kb=kb,
-            me=me,
-            router_mode=router_mode,
-            top_k=top_k,
-        )
-        typed_answer = generate_answer(question.question, typed_context, cfg=c)
-        typed_score, typed_justification = score_answer(
-            question.question,
-            question.ideal_answer,
-            typed_answer,
-            question.category,
-            cfg=c,
-        )
+        typed_context = ""
+        route = QueryRoute.KNOWLEDGE
+        try:
+            # ── Typed routing condition ───────────────────────────────
+            typed_context, route = retrieve_typed(
+                question,
+                kb=kb,
+                me=me,
+                router_mode=router_mode,
+                top_k=top_k,
+            )
+            typed_answer = generate_answer(question.question, typed_context, cfg=c)
+            typed_score, typed_justification = score_answer(
+                question.question,
+                question.ideal_answer,
+                typed_answer,
+                question.category,
+                cfg=c,
+            )
+        except Exception:
+            logger.exception("Typed condition failed for Q %d", i + 1)
+            typed_answer, typed_score, typed_justification = "", 0.0, "LLM_ERROR"
 
         trials.append(
             TrialResult(
@@ -143,16 +149,21 @@ def run_experiment(
             )
         )
 
-        # ── Flat baseline condition ───────────────────────────────
-        flat_context = retrieve_flat(question, flat=flat, top_k=top_k)
-        flat_answer = generate_answer(question.question, flat_context, cfg=c)
-        flat_score, flat_justification = score_answer(
-            question.question,
-            question.ideal_answer,
-            flat_answer,
-            question.category,
-            cfg=c,
-        )
+        flat_context = ""
+        try:
+            # ── Flat baseline condition ───────────────────────────────
+            flat_context = retrieve_flat(question, flat=flat, top_k=top_k)
+            flat_answer = generate_answer(question.question, flat_context, cfg=c)
+            flat_score, flat_justification = score_answer(
+                question.question,
+                question.ideal_answer,
+                flat_answer,
+                question.category,
+                cfg=c,
+            )
+        except Exception:
+            logger.exception("Flat condition failed for Q %d", i + 1)
+            flat_answer, flat_score, flat_justification = "", 0.0, "LLM_ERROR"
 
         trials.append(
             TrialResult(

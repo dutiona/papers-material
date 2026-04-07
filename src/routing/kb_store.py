@@ -56,7 +56,7 @@ class KBStore:
         content_hash = hashlib.sha256(turn.content.encode()).hexdigest()
         cursor = self._conn.execute(
             """\
-            INSERT INTO chunks (content_hash, content, source_type, source_uri, chunk_index, chunk_strategy)
+            INSERT OR IGNORE INTO chunks (content_hash, content, source_type, source_uri, chunk_index, chunk_strategy)
             VALUES (?, ?, 'note', ?, ?, 'mechanical')""",
             (content_hash, turn.content, f"beam://{conversation_id}", turn.turn_id),
         )
@@ -76,7 +76,7 @@ class KBStore:
         ]
         self._conn.executemany(
             """\
-            INSERT INTO chunks (content_hash, content, source_type, source_uri, chunk_index, chunk_strategy)
+            INSERT OR IGNORE INTO chunks (content_hash, content, source_type, source_uri, chunk_index, chunk_strategy)
             VALUES (?, ?, 'note', ?, ?, 'mechanical')""",
             rows,
         )
