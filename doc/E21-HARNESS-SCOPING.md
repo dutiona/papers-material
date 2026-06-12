@@ -52,3 +52,22 @@ Heuristic keyword router (2-conversation subset): Δ=−0.125 — the reversal t
 - Ollama embeddings: `locusai/all-minilm-l6-v2` (384-dim).
 - memory-engine release CLI binary; knowledge-base editable install.
 - Tests: `PYTHONPATH=src uv run pytest` (57 passing at `490c4b6`). Smoke run ≈9 min (2 conversations); full pilot ≈90 min (20).
+
+## Smoke findings (2026-06-13, two 2-conversation runs, WSL→localhost endpoints)
+
+**Validated end-to-end:** BEAM load from HF cache, KB ingest (chunks + claims + supersession chains), flat ingest, oracle routing, LM Studio generation + judging (32 calls/run at `google/gemma-4-26b-a4b`), judge-error recovery, results writing. WSL mirrored networking serves both endpoints on `localhost`.
+
+**Defects the four-arm harness must fix:**
+
+1. **Silent arm death (critical).** ME batch-ingest failed in both runs; the runner logged `ME flush complete: 0 facts ingested` at INFO, completed all trials, wrote results, and exited 0. An arm-invalidating error must abort the run or stamp the output invalid — otherwise a dead arm masquerades as a measured Δ (run 2 "measured" typed=0.000 on temporal purely because ME was empty).
+2. **Stale-DB handling.** `batch-ingest --create` refuses an existing `me.db` (run 1). Runner needs an explicit reset-or-resume policy per arm store; data dirs should be run-scoped.
+3. **Results overwrite.** Runs write `results/{summary,trials}.json` in place, clobbering the committed pilot artifacts. Output must be run-stamped (`results/<run-id>/`). Smoke outputs preserved out-of-repo in `../smoke-2026-06-13/`; pilot `results/` + `data/` restored from pre-smoke backup.
+4. **Judge fragility.** Run 1: one scoring call got HTTP 400 (caught, logged, recovered). Run 2: two `Could not parse judge output` → scored 0.00. The 1024-token judge budget vs gemma4's ~700 reasoning tokens is tight; raise the cap or constrain the response format before 400-trial runs.
+5. **Embeddings touch the pilot only via ME CLI ingest** — KB/flat retrieval is FTS-only. Ollama availability is therefore an ME-arm-only dependency today.
+
+**Open environment blocker (Windows side):** Ollama lists models but cannot start inference — `POST /api/embed` → HTTP 500 `llama-server binary not found` (searched `C:\Users\micha\AppData\Local\Programs\Ollama\lib\ollama\…`; server config shows `OLLAMA_VULKAN:true`, suggesting a source/custom build missing its built runner). ME ingest is blocked until this is fixed. Repro:
+
+```bash
+curl -X POST http://localhost:11434/api/embed \
+  -d '{"model":"locusai/all-minilm-l6-v2","input":"x"}'   # → 500
+```
