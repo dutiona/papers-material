@@ -32,7 +32,7 @@ pythonpath = ["src"]
 testpaths = ["tests"]
 
 [tool.uv.sources]
-knowledge-base = { path = "../../knowledge-base", editable = true }
+knowledge-base = { path = "../knowledge-base", editable = true }
 
 [dependency-groups]
 dev = [
